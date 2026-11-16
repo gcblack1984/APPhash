@@ -1,6 +1,6 @@
 # APPhash
 
-[![Build](https://github.com/gcblack84/APPhash/actions/workflows/build.yml/badge.svg)](https://github.com/gcblack84/APPhash/actions/workflows/build.yml)
+[![Build](https://github.com/gcblack1984/APPhash/actions/workflows/build.yml/badge.svg)](https://github.com/gcblack1984/APPhash/actions/workflows/build.yml)
 [![Licenza: MIT](https://img.shields.io/badge/licenza-MIT-blue.svg)](LICENSE)
 
 **APPhash** calcola le impronte hash di un file, di una cartella o di un archivio compresso
@@ -36,7 +36,7 @@ L'hash dell'archivio nel suo insieme viene sempre calcolato.
 
 ## Download
 
-Scarica l'ultima versione dalla pagina [Releases](https://github.com/gcblack84/APPhash/releases):
+Scarica l'ultima versione dalla pagina [Releases](https://github.com/gcblack1984/APPhash/releases):
 il file `APPhash-vX.Y.Z-windows-x64.zip`.
 
 1. Estrai lo zip dove preferisci (anche su chiavetta USB).
@@ -108,4 +108,4 @@ nell'eseguibile sono elencate in [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.
 
 ## Autore
 
-Giovanni Ciccarese – [@gcblack84](https://github.com/gcblack84)
+Giovanni Ciccarese – [@gcblack1984](https://github.com/gcblack1984)

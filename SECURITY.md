@@ -3,9 +3,9 @@
 ## Segnalare una vulnerabilità
 
 Per segnalare un problema di sicurezza usa la funzione
-[Report a vulnerability](https://github.com/gcblack84/APPhash/security/advisories/new)
+[Report a vulnerability](https://github.com/gcblack1984/APPhash/security/advisories/new)
 di GitHub, che resta riservata fino alla correzione. Per i problemi non riservati apri una
-normale [issue](https://github.com/gcblack84/APPhash/issues).
+normale [issue](https://github.com/gcblack1984/APPhash/issues).
 
 ## Versioni supportate
 

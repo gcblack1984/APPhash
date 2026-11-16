@@ -26,8 +26,8 @@ signed with this project's certificate.
 
 | Role | Members |
 |---|---|
-| Committers and reviewers | [Giovanni Ciccarese (@gcblack84)](https://github.com/gcblack84) |
-| Approvers | [Giovanni Ciccarese (@gcblack84)](https://github.com/gcblack84) |
+| Committers and reviewers | [Giovanni Ciccarese (@gcblack1984)](https://github.com/gcblack1984) |
+| Approvers | [Giovanni Ciccarese (@gcblack1984)](https://github.com/gcblack1984) |
 
 Changes proposed by external contributors (pull requests) are reviewed by a committer before
 being merged. All team members use multi-factor authentication for GitHub and SignPath.
@@ -49,4 +49,4 @@ not write to the registry. To remove it, delete its folder.
 ## Reporting a problem
 
 If you believe a signed release of APPhash violates this policy, please open an
-[issue](https://github.com/gcblack84/APPhash/issues) or see [SECURITY.md](SECURITY.md).
+[issue](https://github.com/gcblack1984/APPhash/issues) or see [SECURITY.md](SECURITY.md).
