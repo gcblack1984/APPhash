@@ -1,0 +1,138 @@
+name: Build
+
+# - a ogni push e pull request: test + compilazione di prova
+# - a ogni tag vX.Y.Z: test, compilazione, firma (se configurata) e pubblicazione della release
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  build:
+    name: Test e compilazione
+    runs-on: windows-latest
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installa le dipendenze
+        run: python -m pip install -r requirements-build.txt
+
+      - name: Esegui i test
+        run: python -m unittest discover -s tests -v
+
+      - name: Leggi la versione
+        id: version
+        shell: bash
+        run: |
+          VERSION=$(python -c "import apphash; print(apphash.APP_VERSION)")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          if [[ "$GITHUB_REF" == refs/tags/v* && "$GITHUB_REF_NAME" != "v$VERSION" ]]; then
+            echo "::error::Il tag $GITHUB_REF_NAME non coincide con APP_VERSION ($VERSION)"
+            exit 1
+          fi
+
+      - name: Compila con PyInstaller
+        run: python -m PyInstaller --noconfirm --clean APPhash.spec
+
+      - name: Aggiungi guida e licenze
+        shell: bash
+        run: |
+          cp docs/Guida_APPhash.pdf dist/APPhash/
+          cp LICENSE dist/APPhash/LICENSE.txt
+          cp THIRD_PARTY_LICENSES.md dist/APPhash/
+
+      - name: Carica l'artefatto non firmato
+        id: upload
+        uses: actions/upload-artifact@v4
+        with:
+          name: APPhash-unsigned
+          path: dist/APPhash
+          if-no-files-found: error
+
+  sign:
+    name: Firma (SignPath)
+    needs: build
+    # Si attiva solo sui tag e solo dopo aver configurato SignPath (vedi variabili del repository).
+    if: startsWith(github.ref, 'refs/tags/v') && vars.SIGNPATH_ORGANIZATION_ID != ''
+    runs-on: windows-latest
+    steps:
+      - name: Invia la richiesta di firma
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ needs.build.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: signed
+
+      - name: Carica l'artefatto firmato
+        uses: actions/upload-artifact@v4
+        with:
+          name: APPhash-signed
+          path: signed
+          if-no-files-found: error
+
+  release:
+    name: Pubblica la release
+    needs: [build, sign]
+    if: >-
+      always() && startsWith(github.ref, 'refs/tags/v') &&
+      needs.build.result == 'success' &&
+      (needs.sign.result == 'success' || needs.sign.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Scarica l'artefatto firmato
+        if: needs.sign.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: APPhash-signed
+          path: APPhash
+
+      - name: Scarica l'artefatto non firmato
+        if: needs.sign.result != 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: APPhash-unsigned
+          path: APPhash
+
+      - name: Prepara i file della release
+        run: |
+          ZIP="APPhash-${GITHUB_REF_NAME}-windows-x64.zip"
+          zip -r -q "$ZIP" APPhash
+          sha256sum "$ZIP" > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          if [ "${{ needs.sign.result }}" = "success" ]; then
+            echo "APPhash.exe è firmato digitalmente. Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by [SignPath Foundation](https://signpath.org)." > note.md
+          else
+            echo "Questa versione **non è firmata digitalmente**: Windows SmartScreen può mostrare un avviso al primo avvio." > note.md
+          fi
+          echo "" >> note.md
+          echo "Vedi la [Code signing policy](https://github.com/${GITHUB_REPOSITORY}/blob/main/CODE_SIGNING_POLICY.md) e il [registro delle modifiche](https://github.com/${GITHUB_REPOSITORY}/blob/main/CHANGELOG.md)." >> note.md
+
+      - name: Crea la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "APPhash ${GITHUB_REF_NAME#v}" \
+            --notes-file note.md \
+            APPhash-*.zip SHA256SUMS.txt
