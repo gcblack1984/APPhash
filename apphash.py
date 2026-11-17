@@ -20,7 +20,7 @@ import zipfile
 import zlib
 
 APP_NAME = "APPhash"
-APP_VERSION = "1.0.0"
+APP_VERSION = "1.1.0"
 APP_SUBTITLE = "Calcolo impronte hash di file, cartelle e archivi"
 APP_AUTHOR = "Ciccarese Giovanni"
 GUIDE_FILE = "Guida_APPhash.pdf"
@@ -673,6 +673,100 @@ def ui_scale(win):
         return 1.0
 
 
+def pick_dropped(paths):
+    """Sceglie l'elemento da analizzare fra quelli trascinati.
+
+    Restituisce (percorso, messaggio per la riga di stato) oppure (None, None).
+    """
+    paths = [os.path.normpath(p) for p in paths if p and p.strip()]
+    if not paths:
+        return None, None
+    first = paths[0]
+    if len(paths) == 1:
+        return first, ("Elemento selezionato con il trascinamento. "
+                       "Premi «Calcola hash» per iniziare.")
+    return first, ("Hai trascinato %d elementi: viene considerato solo il primo "
+                   "(«%s»). Per analizzarne più insieme, raccoglili in una cartella."
+                   % (len(paths), os.path.basename(first.rstrip("\\/")) or first))
+
+
+class WinFileDrop:
+    """Riceve file e cartelle trascinati da Esplora file (solo Windows).
+
+    Usa direttamente le funzioni di sistema DragAcceptFiles / WM_DROPFILES:
+    nessuna libreria aggiuntiva. Su altri sistemi non fa nulla (ok = False).
+    """
+    WM_DROPFILES = 0x0233
+    GWLP_WNDPROC = -4
+
+    def __init__(self, widget, callback):
+        self.ok = False
+        self.widget = widget
+        self.callback = callback
+        if sys.platform != "win32":
+            return
+        try:
+            self._install()
+            self.ok = True
+        except Exception:
+            self.ok = False
+
+    def _install(self):
+        import ctypes
+        from ctypes import wintypes
+
+        user32 = ctypes.WinDLL("user32", use_last_error=True)
+        shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+        LRESULT = ctypes.c_ssize_t
+        WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT,
+                                     wintypes.WPARAM, wintypes.LPARAM)
+
+        set_proc = user32.SetWindowLongPtrW
+        set_proc.argtypes = [wintypes.HWND, ctypes.c_int, ctypes.c_void_p]
+        set_proc.restype = ctypes.c_void_p
+        call_proc = user32.CallWindowProcW
+        call_proc.argtypes = [ctypes.c_void_p, wintypes.HWND, wintypes.UINT,
+                              wintypes.WPARAM, wintypes.LPARAM]
+        call_proc.restype = LRESULT
+        query = shell32.DragQueryFileW
+        query.argtypes = [ctypes.c_void_p, wintypes.UINT, wintypes.LPWSTR, wintypes.UINT]
+        query.restype = wintypes.UINT
+        finish = shell32.DragFinish
+        finish.argtypes = [ctypes.c_void_p]
+        finish.restype = None
+        accept = shell32.DragAcceptFiles
+        accept.argtypes = [wintypes.HWND, wintypes.BOOL]
+        accept.restype = None
+
+        hwnd = self.widget.winfo_id()
+
+        def wndproc(h, msg, wparam, lparam):
+            if msg == self.WM_DROPFILES:
+                paths = []
+                try:
+                    hdrop = ctypes.c_void_p(wparam)
+                    for i in range(query(hdrop, 0xFFFFFFFF, None, 0)):
+                        n = query(hdrop, i, None, 0) + 1
+                        buf = ctypes.create_unicode_buffer(n)
+                        query(hdrop, i, buf, n)
+                        paths.append(buf.value)
+                finally:
+                    finish(ctypes.c_void_p(wparam))
+                if paths:
+                    # elaborato dal ciclo di Tk, fuori dalla procedura di finestra
+                    self.widget.after(0, self.callback, paths)
+                return 0
+            return call_proc(self._old, h, msg, wparam, lparam)
+
+        self._proc = WNDPROC(wndproc)  # riferimento da conservare
+        self._old = set_proc(hwnd, self.GWLP_WNDPROC,
+                             ctypes.cast(self._proc, ctypes.c_void_p).value)
+        if not self._old:
+            raise OSError(ctypes.get_last_error(), "SetWindowLongPtrW")
+        accept(hwnd, True)
+        self.hwnd = hwnd
+
+
 class Splash:
     W, H = 540, 330
     DURATION = 3.2  # secondi (minimo garantito: 3)
@@ -921,6 +1015,11 @@ class MainWindow:
         self.tree.tag_configure("err", foreground=C_KO)
         self.tree.tag_configure("main", font=("Segoe UI", 9, "bold"))
         self._setup_columns(list(DEFAULT_ALGOS))
+        # invito al trascinamento, mostrato sulla tabella vuota
+        self.drop_ok = False
+        self.drop_hint = tk.Label(
+            self.tree, text="Trascina qui un file, una cartella o un archivio compresso",
+            bg="white", fg=C_MUTED, font=("Segoe UI", 11))
 
         sw, sh = root.winfo_screenwidth(), root.winfo_screenheight()
         center(root, min(int(1000 * S), sw - 60), min(int(740 * S), sh - 110), dy=-20)
@@ -956,10 +1055,45 @@ class MainWindow:
             self.path_var.set(os.path.normpath(p))
             self._path_changed()
 
+    # -- trascinamento ---------------------------------------------------
+    def enable_drop(self):
+        """Attiva il trascinamento sulla finestra (chiamato quando è visibile)."""
+        self.dropper = WinFileDrop(self.root, self.on_drop)
+        self.drop_ok = self.dropper.ok
+        if self.drop_ok:
+            self._path_changed()
+            self._show_drop_hint(True)
+
+    def _show_drop_hint(self, on):
+        if on and self.drop_ok and not self.tree.get_children():
+            self.drop_hint.place(relx=0.5, rely=0.5, anchor="center")
+        else:
+            self.drop_hint.place_forget()
+
+    def on_drop(self, paths):
+        if self.worker and self.worker.is_alive():
+            self.status_var.set("Calcolo in corso: attendi la fine o premi «Annulla» "
+                                "prima di trascinare un altro elemento.")
+            return
+        path, msg = pick_dropped(paths)
+        if not path:
+            return
+        self.path_var.set(path)
+        self._path_changed()
+        self.status_var.set(msg)
+        try:
+            self.root.lift()
+        except Exception:
+            pass
+
     def _path_changed(self):
         p = self.path_var.get().strip().strip('"')
         if not p:
-            self.kind_var.set("Seleziona un file, un archivio compresso o una cartella.")
+            if self.drop_ok:
+                self.kind_var.set("Seleziona un file, un archivio compresso o una cartella, "
+                                  "oppure trascinalo in un punto qualsiasi della finestra.")
+            else:
+                self.kind_var.set("Seleziona un file, un archivio compresso o una cartella.")
         elif os.path.isdir(p):
             self.kind_var.set("Tipo rilevato: cartella – nel report sarà incluso "
                               "l'elenco di tutti i file contenuti.")
@@ -986,6 +1120,7 @@ class MainWindow:
         self.result = None
         self.rows.clear()
         self.tree.delete(*self.tree.get_children())
+        self._show_drop_hint(False)
         self._setup_columns(algos)
         self.cmp_lbl.configure(text="")
         self.cancel.clear()
@@ -1035,9 +1170,11 @@ class MainWindow:
                 elif m[0] == "cancel":
                     self.prog.configure(value=0)
                     self.status_var.set("Operazione annullata.")
+                    self._show_drop_hint(True)
                 else:
                     self.prog.configure(value=0)
                     self.status_var.set("Errore durante il calcolo.")
+                    self._show_drop_hint(True)
                     messagebox.showerror(APP_NAME, "Si è verificato un errore:\n\n%s" % m[1])
                 return
         except queue.Empty:
@@ -1194,6 +1331,8 @@ def main():
         root.deiconify()
         root.lift()
         root.focus_force()
+        root.update_idletasks()
+        state["win"].enable_drop()
 
     Splash(root, load, done)
     root.mainloop()

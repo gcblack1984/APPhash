@@ -19,6 +19,8 @@ e genera un report pronto da stampare o allegare.
 - Calcola in un solo passaggio più algoritmi: MD5, SHA-1, SHA-256, SHA-384, SHA-512,
   SHA3-256, BLAKE2b, CRC32.
 - Analizza **file singoli**, **cartelle** (anche con le sottocartelle) e **archivi compressi**.
+- L'elemento da analizzare si sceglie con i pulsanti oppure **trascinandolo nella finestra**
+  da Esplora file.
 - Per cartelle e archivi il report contiene l'**elenco di tutti i file contenuti**, con
   dimensione e hash di ciascuno.
 - Confronta gli hash calcolati con un hash atteso.

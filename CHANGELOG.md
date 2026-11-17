@@ -1,5 +1,13 @@
 # Registro delle modifiche
 
+## 1.1.0
+
+- Selezione per trascinamento: file, cartelle e archivi si possono trascinare da Esplora
+  file in un punto qualsiasi della finestra, in alternativa ai pulsanti "Scegli file…" e
+  "Scegli cartella…".
+- Invito al trascinamento sulla tabella dei risultati vuota.
+- Guida aggiornata con il nuovo capitolo sulla scelta dell'elemento.
+
 ## 1.0.0
 
 Prima versione pubblica.
