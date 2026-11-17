@@ -62,6 +62,31 @@ jobs:
           path: dist/APPhash
           if-no-files-found: error
 
+      # Pacchetto per il Microsoft Store. Finche' le variabili MSIX_* non sono impostate
+      # usa un'identita' di prova: il pacchetto si puo' provare ma non caricare sullo Store.
+      - name: Crea il pacchetto MSIX (Microsoft Store)
+        shell: pwsh
+        run: >-
+          ./packaging/msix/crea_msix.ps1
+          -Version "${{ steps.version.outputs.version }}"
+          -IdentityName "${{ vars.MSIX_IDENTITY_NAME || 'GiovanniCiccarese.APPhash' }}"
+          -Publisher "${{ vars.MSIX_PUBLISHER || 'CN=APPhash-Test' }}"
+          -PublisherDisplayName "${{ vars.MSIX_PUBLISHER_DISPLAY_NAME || 'Giovanni Ciccarese' }}"
+
+      - name: Carica il pacchetto MSIX da inviare allo Store
+        uses: actions/upload-artifact@v4
+        with:
+          name: APPhash-msix-store
+          path: dist/msix/*.msix
+          if-no-files-found: error
+
+      - name: Carica la versione MSIX di prova (da registrare in locale)
+        uses: actions/upload-artifact@v4
+        with:
+          name: APPhash-msix-prova
+          path: dist/msix/layout
+          if-no-files-found: error
+
   sign:
     name: Firma (SignPath)
     needs: build
