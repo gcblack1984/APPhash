@@ -1,5 +1,12 @@
 # Registro delle modifiche
 
+## 1.1.1
+
+- Corretto: il programma si chiudeva rilasciando un file trascinato nella finestra.
+- Pacchetto MSIX per la pubblicazione sul Microsoft Store.
+- Informativa sulla privacy.
+- Guida: indicazioni per la versione installata dal Microsoft Store.
+
 ## 1.1.0
 
 - Selezione per trascinamento: file, cartelle e archivi si possono trascinare da Esplora

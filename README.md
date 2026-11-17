@@ -74,7 +74,8 @@ Ruoli del team, modalità di rilascio e informativa sulla privacy sono descritti
 ## Privacy
 
 APPhash non trasmette alcuna informazione ad altri sistemi in rete: lavora interamente sul
-computer dell'utente, non raccoglie dati e non contiene telemetria.
+computer dell'utente, non raccoglie dati e non contiene telemetria. Vedi l'[informativa sulla
+privacy](PRIVACY.md).
 
 ## Compilare dai sorgenti
 
@@ -99,6 +100,9 @@ Per eseguire i test:
 ```bat
 py -m unittest discover -s tests -v
 ```
+
+Il pacchetto MSIX per il Microsoft Store si crea con `packaging\msix\crea_msix.ps1` (serve
+Windows SDK); GitHub Actions lo produce a ogni compilazione.
 
 Le release pubblicate sono compilate esclusivamente da GitHub Actions
 ([build.yml](.github/workflows/build.yml)) a partire da un tag `vX.Y.Z`.

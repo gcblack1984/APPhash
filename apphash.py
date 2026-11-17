@@ -20,7 +20,7 @@ import zipfile
 import zlib
 
 APP_NAME = "APPhash"
-APP_VERSION = "1.1.0"
+APP_VERSION = "1.1.1"
 APP_SUBTITLE = "Calcolo impronte hash di file, cartelle e archivi"
 APP_AUTHOR = "Ciccarese Giovanni"
 GUIDE_FILE = "Guida_APPhash.pdf"
@@ -698,11 +698,13 @@ class WinFileDrop:
     """
     WM_DROPFILES = 0x0233
     GWLP_WNDPROC = -4
+    POLL_MS = 100
 
     def __init__(self, widget, callback):
         self.ok = False
         self.widget = widget
         self.callback = callback
+        self.pending = []  # elenchi di percorsi ricevuti e non ancora elaborati
         if sys.platform != "win32":
             return
         try:
@@ -710,6 +712,19 @@ class WinFileDrop:
             self.ok = True
         except Exception:
             self.ok = False
+            return
+        self.widget.after(self.POLL_MS, self._poll)
+
+    def _poll(self):
+        """Consegna i percorsi ricevuti, dal normale ciclo degli eventi di Tk."""
+        try:
+            while self.pending:
+                self.callback(self.pending.pop(0))
+        finally:
+            try:
+                self.widget.after(self.POLL_MS, self._poll)
+            except Exception:  # finestra chiusa
+                pass
 
     def _install(self):
         import ctypes
@@ -740,21 +755,28 @@ class WinFileDrop:
 
         hwnd = self.widget.winfo_id()
 
+        # ATTENZIONE: questa procedura viene chiamata da Windows mentre Tk sta
+        # elaborando i messaggi. Qui dentro non si deve chiamare NESSUNA funzione
+        # di tkinter (nemmeno after): si altera lo stato interno di Python e il
+        # programma si chiude. I percorsi vengono solo messi da parte e li
+        # consegna _poll, dal normale ciclo degli eventi.
         def wndproc(h, msg, wparam, lparam):
             if msg == self.WM_DROPFILES:
-                paths = []
                 try:
+                    paths = []
                     hdrop = ctypes.c_void_p(wparam)
-                    for i in range(query(hdrop, 0xFFFFFFFF, None, 0)):
-                        n = query(hdrop, i, None, 0) + 1
-                        buf = ctypes.create_unicode_buffer(n)
-                        query(hdrop, i, buf, n)
-                        paths.append(buf.value)
-                finally:
-                    finish(ctypes.c_void_p(wparam))
-                if paths:
-                    # elaborato dal ciclo di Tk, fuori dalla procedura di finestra
-                    self.widget.after(0, self.callback, paths)
+                    try:
+                        for i in range(query(hdrop, 0xFFFFFFFF, None, 0)):
+                            n = query(hdrop, i, None, 0) + 1
+                            buf = ctypes.create_unicode_buffer(n)
+                            query(hdrop, i, buf, n)
+                            paths.append(buf.value)
+                    finally:
+                        finish(hdrop)
+                    if paths:
+                        self.pending.append(paths)
+                except Exception:
+                    pass
                 return 0
             return call_proc(self._old, h, msg, wparam, lparam)
 
