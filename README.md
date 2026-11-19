@@ -10,7 +10,8 @@ e genera un report pronto da stampare o allegare.
 > file hashes (MD5, SHA-1, SHA-256, SHA-384, SHA-512, SHA3-256, BLAKE2b, CRC32) of a single
 > file, a whole folder or a compressed archive, and produces a PDF, HTML or text report.
 > For folders and archives the report lists every contained file. It opens files read-only,
-> works fully offline and never sends data anywhere. Portable: no installation required.
+> works fully offline and never sends data anywhere. Available on the
+> [Microsoft Store](https://apps.microsoft.com/detail/9p8dnnhnm38c) or as a portable download.
 
 ![Risultato dell'analisi di un archivio](docs/img/risultati.png)
 
@@ -38,8 +39,17 @@ L'hash dell'archivio nel suo insieme viene sempre calcolato.
 
 ## Download
 
+### Microsoft Store (consigliato)
+
+[**Installa APPhash dal Microsoft Store**](https://apps.microsoft.com/detail/9p8dnnhnm38c)
+
+Si installa con un clic, si aggiorna automaticamente e si avvia dal menu Start. Il pacchetto
+è firmato da Microsoft, quindi Windows non mostra avvisi.
+
+### Versione portatile
+
 Scarica l'ultima versione dalla pagina [Releases](https://github.com/gcblack1984/APPhash/releases):
-il file `APPhash-vX.Y.Z-windows-x64.zip`.
+il file `APPhash-vX.Y.Z-windows-x64.zip`. Non richiede installazione.
 
 1. Estrai lo zip dove preferisci (anche su chiavetta USB).
 2. Apri la cartella `APPhash` e fai doppio clic su `APPhash.exe`.
